@@ -1,6 +1,4 @@
 # EcoFriend – AI Smart Plantation Assistant (Full `app.py`)
-
-```python
 import streamlit as st
 import google.generativeai as genai
 from PIL import Image
