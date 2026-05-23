@@ -1,16 +1,9 @@
-# EcoFriend – AI Smart Plantation Assistant (Full `app.py`)
 import streamlit as st
 import google.generativeai as genai
 from PIL import Image
-import pandas as pd
-import speech_recognition as sr
 from gtts import gTTS
 import tempfile
-import os
 
-# -------------------------------
-# PAGE CONFIG
-# -------------------------------
 st.set_page_config(
     page_title="EcoFriend – AI Smart Plantation Assistant",
     page_icon="🌱",
@@ -18,9 +11,6 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# -------------------------------
-# GEMINI API CONFIG
-# -------------------------------
 GEMINI_API_KEY = "YOUR_GEMINI_API_KEY"
 
 try:
@@ -29,9 +19,6 @@ try:
 except:
     model = None
 
-# -------------------------------
-# CUSTOM CSS
-# -------------------------------
 st.markdown(
     """
     <style>
@@ -75,27 +62,11 @@ st.markdown(
         font-weight: bold;
         color: #d6ffd6;
     }
-
-    .green-btn {
-        background: linear-gradient(45deg, #00b09b, #96c93d);
-        color: white;
-        border: none;
-        padding: 10px 20px;
-        border-radius: 10px;
-        font-weight: bold;
-    }
-
-    .sidebar .sidebar-content {
-        background: rgba(0,0,0,0.3);
-    }
     </style>
     """,
     unsafe_allow_html=True
 )
 
-# -------------------------------
-# SIDEBAR
-# -------------------------------
 st.sidebar.title("🌿 EcoFriend")
 st.sidebar.markdown("### Smart Plantation Assistant")
 st.sidebar.markdown("### స్మార్ట్ ప్లాంటేషన్ అసిస్టెంట్")
@@ -116,12 +87,12 @@ page = st.sidebar.radio(
     ]
 )
 
-# -------------------------------
-# HOME PAGE
-# -------------------------------
 if page == "🏠 Home":
 
-    st.markdown('<div class="main-title">🌱 EcoFriend – AI Smart Plantation Assistant</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="main-title">🌱 EcoFriend – AI Smart Plantation Assistant</div>',
+        unsafe_allow_html=True
+    )
 
     st.markdown(
         '<div class="subtitle">Smart Gardening for Students & Beginners 🌿<br>విద్యార్థులు మరియు ప్రారంభకుల కోసం స్మార్ట్ గార్డెనింగ్</div>',
@@ -152,7 +123,7 @@ if page == "🏠 Home":
             """
             <div class='glass-card'>
             <div class='feature-title'>🤖 AI Chatbot</div>
-            <p>Ask any plant care questions in English & Telugu.<br>
+            <p>Ask plant care questions in English & Telugu.<br>
             ఇంగ్లీష్ మరియు తెలుగు భాషల్లో ప్రశ్నలు అడగండి.</p>
             </div>
             """,
@@ -189,25 +160,23 @@ if page == "🏠 Home":
     for feature in features:
         st.markdown(f"✅ {feature}")
 
-# -------------------------------
-# LOGIN PAGE
-# -------------------------------
 elif page == "🔐 Login":
 
-    st.markdown("<h1 style='text-align:center;'>🔐 Login / Create Account</h1>", unsafe_allow_html=True)
+    st.markdown(
+        "<h1 style='text-align:center;'>🔐 Login / Create Account</h1>",
+        unsafe_allow_html=True
+    )
 
     auth_mode = st.selectbox(
         "Choose Option",
         ["Login", "Create Account", "Forgot Password"]
     )
 
-    st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
-
     email = st.text_input("📧 Email")
     password = st.text_input("🔑 Password", type="password")
 
     if auth_mode == "Create Account":
-        confirm = st.text_input("🔒 Confirm Password", type="password")
+        st.text_input("🔒 Confirm Password", type="password")
 
     if st.button("Next ➜"):
 
@@ -221,11 +190,6 @@ elif page == "🔐 Login":
             st.success("Authentication Successful ✅")
             st.balloons()
 
-    st.markdown("</div>", unsafe_allow_html=True)
-
-# -------------------------------
-# PLANT RECOMMENDATION
-# -------------------------------
 elif page == "🌱 Plant Recommendation":
 
     st.title("🌱 Plant Recommendation | మొక్కల సూచనలు")
@@ -236,7 +200,14 @@ elif page == "🌱 Plant Recommendation":
 
     if st.button("Recommend Plant"):
 
-        prompt = f"Suggest suitable plants for {climate} climate, {sunlight} sunlight and {soil} soil. Give English and Telugu output."
+        prompt = f"""
+        Suggest suitable plants for:
+        Climate: {climate}
+        Sunlight: {sunlight}
+        Soil: {soil}
+
+        Give bilingual output in English and Telugu.
+        """
 
         if model:
             response = model.generate_content(prompt)
@@ -244,9 +215,6 @@ elif page == "🌱 Plant Recommendation":
         else:
             st.write("🌿 Aloe Vera\n🌿 Tulsi\n🌿 Money Plant")
 
-# -------------------------------
-# SOIL GUIDANCE
-# -------------------------------
 elif page == "🪴 Soil Guidance":
 
     st.title("🪴 Soil Guidance | నేల మార్గదర్శకం")
@@ -255,17 +223,16 @@ elif page == "🪴 Soil Guidance":
 
     if st.button("Get Soil Guidance"):
 
-        prompt = f"Give soil guidance, compost suggestions and fertility tips for {plant} in English and Telugu."
+        prompt = f"""
+        Give soil guidance, compost suggestions,
+        and fertility tips for {plant}
+        in English and Telugu.
+        """
 
         if model:
             response = model.generate_content(prompt)
             st.success(response.text)
-        else:
-            st.write("Use organic compost and loamy soil.")
 
-# -------------------------------
-# WATER PREDICTION
-# -------------------------------
 elif page == "💧 Water Prediction":
 
     st.title("💧 Water Quantity Prediction")
@@ -277,12 +244,12 @@ elif page == "💧 Water Prediction":
 
         water = temperature * 0.2
 
-        st.success(f"Recommended Water Quantity: {water:.1f} Litres/day")
+        st.success(
+            f"Recommended Water Quantity: {water:.1f} Litres/day"
+        )
+
         st.info("రోజుకు నీటి పరిమాణం సూచించబడింది")
 
-# -------------------------------
-# CLIMATE SUITABILITY
-# -------------------------------
 elif page == "🌤 Climate Suitability":
 
     st.title("🌤 Climate Suitability")
@@ -294,39 +261,40 @@ elif page == "🌤 Climate Suitability":
 
         if temp < 15:
             st.warning("Cold Climate")
+
         elif temp < 35:
             st.success("Suitable Climate for Most Plants 🌿")
+
         else:
             st.error("Too Hot for Sensitive Plants")
 
         st.info(f"Humidity Level: {humidity}%")
 
-# -------------------------------
-# DISEASE DETECTION
-# -------------------------------
 elif page == "🍂 Disease Detection":
 
     st.title("🍂 AI Disease Detection")
 
-    uploaded = st.file_uploader("Upload Leaf Image", type=["jpg", "png", "jpeg"])
+    uploaded = st.file_uploader(
+        "Upload Leaf Image",
+        type=["jpg", "png", "jpeg"]
+    )
 
     if uploaded:
 
         image = Image.open(uploaded)
 
-        st.image(image, caption="Uploaded Leaf", use_container_width=True)
+        st.image(
+            image,
+            caption="Uploaded Leaf",
+            use_container_width=True
+        )
 
         if st.button("Detect Disease"):
-
-            prompt = "Identify common plant disease from uploaded leaf image and provide remedies in English and Telugu."
 
             st.success("Possible Disease: Leaf Spot")
             st.info("Use neem oil spray and avoid overwatering.")
             st.info("వేప నూనె స్ప్రే ఉపయోగించండి")
 
-# -------------------------------
-# AI CHATBOT
-# -------------------------------
 elif page == "🤖 AI Chatbot":
 
     st.title("🤖 EcoFriend AI Chatbot")
@@ -337,7 +305,12 @@ elif page == "🤖 AI Chatbot":
 
         if model:
 
-            prompt = f"Answer this plant-related question bilingually in English and Telugu: {user_question}"
+            prompt = f"""
+            Answer this plant-related question
+            bilingually in English and Telugu:
+
+            {user_question}
+            """
 
             response = model.generate_content(prompt)
 
@@ -346,9 +319,6 @@ elif page == "🤖 AI Chatbot":
         else:
             st.write("AI service unavailable")
 
-# -------------------------------
-# GROWTH PREDICTION
-# -------------------------------
 elif page == "📈 Growth Prediction":
 
     st.title("📈 Plant Growth Prediction")
@@ -363,14 +333,9 @@ elif page == "📈 Growth Prediction":
         st.success(f"Expected Growth: {growth:.1f} cm")
         st.info("మొక్క ఎదుగుదల అంచనా")
 
-# -------------------------------
-# VOICE ASSISTANT
-# -------------------------------
 elif page == "🎤 Voice Assistant":
 
     st.title("🎤 Voice Assistant | వాయిస్ అసిస్టెంట్")
-
-    st.write("Speak in English or Telugu")
 
     text_input = st.text_area("Enter Text for Voice")
 
@@ -383,7 +348,10 @@ elif page == "🎤 Voice Assistant":
 
         tts = gTTS(text=text_input, lang=language)
 
-        temp_audio = tempfile.NamedTemporaryFile(delete=False, suffix='.mp3')
+        temp_audio = tempfile.NamedTemporaryFile(
+            delete=False,
+            suffix='.mp3'
+        )
 
         tts.save(temp_audio.name)
 
@@ -391,9 +359,6 @@ elif page == "🎤 Voice Assistant":
 
         st.audio(audio_file.read(), format='audio/mp3')
 
-# -------------------------------
-# FOOTER
-# -------------------------------
 st.markdown("---")
 
 st.markdown(
@@ -406,8 +371,3 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
-
-
-
----
-
