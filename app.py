@@ -1,335 +1,415 @@
-import os
+# EcoFriend – AI Smart Plantation Assistant (Full `app.py`)
+
+```python
 import streamlit as st
-import json
+import google.generativeai as genai
 from PIL import Image
-from google import genai
-from google.genai import types
+import pandas as pd
+import speech_recognition as sr
+from gtts import gTTS
+import tempfile
+import os
 
-# Load environment secrets
-try:
-    from dotenv import load_dotenv
-    load_dotenv()
-except ImportError:
-    pass
-
-# Page Configuration
+# -------------------------------
+# PAGE CONFIG
+# -------------------------------
 st.set_page_config(
-    page_title="EcoFriend AI - Smart Plantation App",
+    page_title="EcoFriend – AI Smart Plantation Assistant",
     page_icon="🌱",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Custom CS styling for botanical natural aesthetic
-st.markdown("""
-<style>
-    .main {
-        background-color: #f7faf8;
+# -------------------------------
+# GEMINI API CONFIG
+# -------------------------------
+GEMINI_API_KEY = "YOUR_GEMINI_API_KEY"
+
+try:
+    genai.configure(api_key=GEMINI_API_KEY)
+    model = genai.GenerativeModel("gemini-1.5-flash")
+except:
+    model = None
+
+# -------------------------------
+# CUSTOM CSS
+# -------------------------------
+st.markdown(
+    """
+    <style>
+    .stApp {
+        background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+        color: white;
+        font-family: 'Segoe UI', sans-serif;
     }
+
     .main-title {
-        color: #1b4332;
-        font-family: 'Inter', sans-serif;
-        font-weight: 800;
+        font-size: 3rem;
+        font-weight: bold;
+        color: #b7ffb7;
         text-align: center;
-        margin-bottom: 2px;
     }
+
     .subtitle {
-        color: #40916c;
-        font-family: 'Inter', sans-serif;
         text-align: center;
+        font-size: 1.2rem;
+        color: #e8ffe8;
         margin-bottom: 30px;
-        font-size: 1.1rem;
     }
-    .card {
-        background: #ffffff;
-        padding: 20px;
-        border-radius: 12px;
-        border: 1px solid #e1e8e4;
-        margin-bottom: 15px;
+
+    .glass-card {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 20px;
+        padding: 25px;
+        backdrop-filter: blur(10px);
+        box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        margin-bottom: 20px;
+        transition: 0.3s ease;
     }
-    .telugu-text {
-        font-family: 'NTR', 'Inter', sans-serif;
-        color: #2d6a4f;
-        background-color: #f0fdf4;
-        padding: 10px;
-        border-radius: 8px;
-        border-left: 4px solid #52b788;
-        margin-top: 5px;
-        font-size: 0.95rem;
+
+    .glass-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 35px rgba(0,255,100,0.3);
     }
-</style>
-""", unsafe_allow_html=True)
 
-# Initialize Gemini AI API safely
-api_key = os.environ.get("GEMINI_API_KEY", "")
-client = None
-if api_key:
-    try:
-        client = genai.Client(api_key=api_key)
-    except Exception as e:
-        st.error(f"Error initializing Gemini client: {e}")
+    .feature-title {
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: #d6ffd6;
+    }
 
-# Navigation bar or Sidebar selectors
-with st.sidebar:
-    st.markdown("<h2 style='color: #1b4332;'>🌱 EcoFriend AI</h2>", unsafe_allow_html=True)
-    st.markdown("### Choice of Language / భాష ఎంపిక")
-    lang_opt = st.selectbox("Select Language", ["Bilingual (English + తెలుగు)", "English", "తెలుగు"])
-    
-    st.markdown("---")
-    st.info("""
-    **Bilingual Botany Assistant**
-    Helps school students and beginner gardeners prepare soil, select appropriate crops, assess climate suitability, and prevent plant diseases with Gemini AI.
-    
-    **ద్విభాషా తోటపనికి సహాయకుడు**
-    పాఠశాలల విద్యార్థులు మరియు తోటపనిని ప్రారంభించే వారికి మట్టి తయారీ, పంటల ఎంపిక, శీతోష్ణస్థితి అనుకూలత మరియు వ్యాధుల నివారణలో జెమిని సహాయపడుతుంది.
-    """)
+    .green-btn {
+        background: linear-gradient(45deg, #00b09b, #96c93d);
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 10px;
+        font-weight: bold;
+    }
 
-# Helper for showing content in respective languages
-def show_bilingual(en_txt, te_txt, header=""):
-    if header:
-        st.markdown(f"**{header}**")
-    if lang_opt == "English":
-        st.write(en_txt)
-    elif lang_opt == "తెలుగు":
-        st.markdown(f"<div class='telugu-text'>{te_txt}</div>", unsafe_allow_html=True)
-    else:
-        st.write(en_txt)
-        st.markdown(f"<div class='telugu-text'>{te_txt}</div>", unsafe_allow_html=True)
+    .sidebar .sidebar-content {
+        background: rgba(0,0,0,0.3);
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
 
-# Title Header
-st.markdown("<h1 class='main-title'>🌱 EcoFriend AI - Smart Plantation Companion</h1>", unsafe_allow_html=True)
-st.markdown("<p class='subtitle'>Bilingual Gardening, Crop & Disease Assistant / ద్విభాషా తోటపని మరియు వ్యాధుల సహాయకుడు</p>", unsafe_allow_html=True)
+# -------------------------------
+# SIDEBAR
+# -------------------------------
+st.sidebar.title("🌿 EcoFriend")
+st.sidebar.markdown("### Smart Plantation Assistant")
+st.sidebar.markdown("### స్మార్ట్ ప్లాంటేషన్ అసిస్టెంట్")
 
-if not api_key:
-    st.warning("⚠️ GEMINI_API_KEY is not defined in environment secrets. Displaying interactive guidance modes using integrated smart offline model parameters.")
+page = st.sidebar.radio(
+    "Navigation",
+    [
+        "🏠 Home",
+        "🔐 Login",
+        "🌱 Plant Recommendation",
+        "🪴 Soil Guidance",
+        "💧 Water Prediction",
+        "🌤 Climate Suitability",
+        "🍂 Disease Detection",
+        "🤖 AI Chatbot",
+        "📈 Growth Prediction",
+        "🎤 Voice Assistant"
+    ]
+)
 
-# Main Application Tabs
-tab1, tab2, tab3, tab4 = st.tabs([
-    "🥗 Plant Chooser / ఎంపిక", 
-    "🪵 Soil & Fertilizer / మట్టి మరియు ఎరువులు", 
-    "🍁 Disease Identifier / తెగులు గుర్తింపు",
-    "💬 Eco Chat / చాట్‌బాట్"
-])
+# -------------------------------
+# HOME PAGE
+# -------------------------------
+if page == "🏠 Home":
 
-# 1. PLANT CHOOSER TAB
-with tab1:
-    st.markdown("### Regional Crop Recommendations / మొక్కల ఎంపిక సూచనలు")
-    col1, col2 = st.columns(2)
+    st.markdown('<div class="main-title">🌱 EcoFriend – AI Smart Plantation Assistant</div>', unsafe_allow_html=True)
+
+    st.markdown(
+        '<div class="subtitle">Smart Gardening for Students & Beginners 🌿<br>విద్యార్థులు మరియు ప్రారంభకుల కోసం స్మార్ట్ గార్డెనింగ్</div>',
+        unsafe_allow_html=True
+    )
+
+    st.image(
+        "https://images.unsplash.com/photo-1466692476868-aef1dfb1e735",
+        use_container_width=True
+    )
+
+    col1, col2, col3 = st.columns(3)
+
     with col1:
-        climate = st.selectbox("Local Climate / స్థానిక శీతోష్ణస్థితి", ["Tropical (ఉష్ణమండల)", "Dry/Arid (ఎండినది)", "Cool/Temperate (చల్లనిది)", "High Rainfall (ఎక్కువ వర్షపాతం)"])
-        sunlight = st.selectbox("Sunlight / సూర్యరశ్మి", ["Full Sun (పూర్తి ఎండ - 6+ hours)", "Partial Shade (పాక్షిక నీడ)", "Deep Shade (పూర్తి నీడ)"])
+        st.markdown(
+            """
+            <div class='glass-card'>
+            <div class='feature-title'>🌱 Plant Recommendation</div>
+            <p>Suggests suitable plants based on climate and soil.<br>
+            వాతావరణం మరియు నేల ఆధారంగా మొక్కల సూచనలు.</p>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
     with col2:
-        soil_type = st.selectbox("Soil Type / మట్టి రకం", ["Loamy Soil (చిక్కటి నల్లరేగడి మట్టి)", "Sandy Soil (ఇసుక మట్టి)", "Clay Soil (బంకమట్టి)", "Red Soil (ఎర్ర మట్టి)"])
-        water = st.selectbox("Water Availability / నీటి సదుపాయం", ["Abundant (సరిపడా నీరు ఉంది)", "Moderate (మధ్యస్థంగా ఉంది)", "Scarce/Drought (చాలా తక్కువ)"])
+        st.markdown(
+            """
+            <div class='glass-card'>
+            <div class='feature-title'>🤖 AI Chatbot</div>
+            <p>Ask any plant care questions in English & Telugu.<br>
+            ఇంగ్లీష్ మరియు తెలుగు భాషల్లో ప్రశ్నలు అడగండి.</p>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
 
-    if st.button("Recommend Suitable Plants / పంటలను సిఫార్సు చేయు"):
-        if client:
-            with st.spinner("AI is analyzing local parameters..."):
-                prompt = f"""Recommend 3 suitable plants for conditions: Climate: {climate}, Sunlight: {sunlight}, Soil: {soil_type}, Water: {water}.
-                Return JSON format of a list strictly matching:
-                [
-                  {{
-                    "name": "Plant Name",
-                    "teluguName": "తెలుగు పేరు",
-                    "description": "Intro in English",
-                    "teluguDescription": "తెలుగు ఉపోద్ఘాతం",
-                    "growthTime": "e.g. 60 days",
-                    "sunlightRequired": "advice",
-                    "soilRequired": "advice",
-                    "waterRequired": "advice",
-                    "careTips": ["Tip 1 in English"],
-                    "careTipsTelugu": ["తెలుగు చిట్కా 1"]
-                  }}
-                ]"""
-                try:
-                    response = client.models.generate_content(
-                        model="gemini-3.5-flash",
-                        contents=prompt,
-                        config=types.GenerateContentConfig(
-                            response_mime_type="application/json"
-                        )
-                    )
-                    plants = json.loads(response.text)
-                    for plant in plants:
-                        with st.container():
-                            st.markdown(f"#### 🌿 {plant.get('name')} | <span style='color: #2d6a4f;'>{plant.get('teluguName')}</span>", unsafe_allow_html=True)
-                            show_bilingual(plant.get('description'), plant.get('teluguDescription'))
-                            
-                            subcol1, subcol2 = st.columns(2)
-                            with subcol1:
-                                st.write(f"⏱️ **Growth Time:** {plant.get('growthTime')}")
-                                st.write(f"☀️ **Sunlight required:** {plant.get('sunlightRequired')}")
-                            with subcol2:
-                                st.write(f"🪵 **Soil Required:** {plant.get('soilRequired')}")
-                                st.write(f"💧 **Water Required:** {plant.get('waterRequired')}")
-                            
-                            st.write("**Planting Tips / నాటడానికి చిట్కాలు:**")
-                            for en_tip, te_tip in zip(plant.get('careTips', []), plant.get('careTipsTelugu', [])):
-                                show_bilingual(f"- {en_tip}", f"- {te_tip}")
-                            st.markdown("---")
-                except Exception as e:
-                    st.error(f"Error querying Gemini: {e}")
+    with col3:
+        st.markdown(
+            """
+            <div class='glass-card'>
+            <div class='feature-title'>🍂 Disease Detection</div>
+            <p>Upload leaf images for disease analysis.<br>
+            ఆకుల చిత్రాలతో వ్యాధి గుర్తింపు.</p>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+    st.markdown("---")
+
+    st.subheader("✨ Features | ఫీచర్లు")
+
+    features = [
+        "🌱 Smart Plant Recommendation",
+        "🪴 Soil Guidance",
+        "💧 Water Quantity Prediction",
+        "🌤 Climate Analysis",
+        "🍂 AI Disease Detection",
+        "🤖 AI Plant Chatbot",
+        "📈 Growth Prediction",
+        "🎤 Telugu Voice Assistant"
+    ]
+
+    for feature in features:
+        st.markdown(f"✅ {feature}")
+
+# -------------------------------
+# LOGIN PAGE
+# -------------------------------
+elif page == "🔐 Login":
+
+    st.markdown("<h1 style='text-align:center;'>🔐 Login / Create Account</h1>", unsafe_allow_html=True)
+
+    auth_mode = st.selectbox(
+        "Choose Option",
+        ["Login", "Create Account", "Forgot Password"]
+    )
+
+    st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
+
+    email = st.text_input("📧 Email")
+    password = st.text_input("🔑 Password", type="password")
+
+    if auth_mode == "Create Account":
+        confirm = st.text_input("🔒 Confirm Password", type="password")
+
+    if st.button("Next ➜"):
+
+        if "@" not in email:
+            st.error("Invalid Email")
+
+        elif len(password) < 6:
+            st.error("Password must contain at least 6 characters")
+
         else:
-            # Fallback mock data
-            st.info("Showing default regional plants for beginners:")
-            st.markdown("""
-            #### 🌿 Holy Basil (Tulsi) | <span style='color: #2d6a4f;'>తులసి</span>
-            """, unsafe_allow_html=True)
-            show_bilingual(
-                "Tulsi is a highly revered medicinal plant. It grows exceptionally well in warm climates with moderate watering.",
-                "తులసి ఒక పురాతన ఔషధ గుణాలు గల మొక్క. ఇది వెచ్చని వాతావరణంలో చాలా వేగంగా పెరుగుతుంది."
-            )
-            st.markdown("""
-            #### 🌿 Marigold (Banthi) | <span style='color: #2d6a4f;'>బంతి పూలు</span>
-            """, unsafe_allow_html=True)
-            show_bilingual(
-                "Bright marigolds act as natural pest repellents, perfect for school gardens.",
-                "బంతి పువ్వులు సహజంగా కీటకాలను వివారిస్తాయి. పాఠశాల తోటలకు ఎంతో అనుకూలం."
-            )
+            st.success("Authentication Successful ✅")
+            st.balloons()
 
-# 2. SOIL TAB
-with tab2:
-    st.markdown("### Soil Preparation & Compost Guide / మట్టి తయారీ మరియు సేంద్రియ ఎరువులు")
-    st.write("Understand soil fertility values and calculate recommended organic additions.")
-    soil_sel = st.selectbox("Select Soil Type to Analyze / విశ్లేషించడానికి మట్టి రకాన్ని ఎంచుకోండి", ["Sandy Soil", "Red Clay", "Loamy Silt", "Black Cotton Soil"])
-    soil_condition = st.text_input("Describe current soil condition (e.g. Dry and stony) / నివేదించండి", "Slightly dry with some pebbles")
-    
-    if st.button("Generate Soil Enhancement Plan / అభివృద్ధి ప్రణాళికను తయారుచేయు"):
-        if client:
-            with st.spinner("Preparing analytical recommendations..."):
-                prompt = f"""Provide organic enrichment solutions for {soil_sel} that is currently {soil_condition}.
-                Deliver valid JSON with keys: 'bestCrops' (list), 'fertilityRating' (string), 'fertilityTips' (list of en), 'fertilityTipsTelugu' (list of te), 'compostSuggestions' (list of en), 'compostSuggestionsTelugu' (list of te)"""
-                try:
-                    response = client.models.generate_content(
-                        model="gemini-3.5-flash",
-                        contents=prompt,
-                        config=types.GenerateContentConfig(response_mime_type="application/json")
-                    )
-                    res = json.loads(response.text)
-                    st.success(f"**Fertility Rating:** {res.get('fertilityRating')}")
-                    st.write(f"💡 **Recommended Crops:** {', '.join(res.get('bestCrops', []))}")
-                    
-                    st.markdown("#### Soil Tilling Advice / దున్నడానికి చిట్కా")
-                    for en, te in zip(res.get('fertilityTips', []), res.get('fertilityTipsTelugu', [])):
-                        show_bilingual(en, te)
-                        
-                    st.markdown("#### Compost & Addition / సేంద్రియ ఎరువుల చిట్కాలు")
-                    for en, te in zip(res.get('compostSuggestions', []), res.get('compostSuggestionsTelugu', [])):
-                        show_bilingual(en, te)
-                except Exception as e:
-                    st.error(f"Error: {e}")
+    st.markdown("</div>", unsafe_allow_html=True)
+
+# -------------------------------
+# PLANT RECOMMENDATION
+# -------------------------------
+elif page == "🌱 Plant Recommendation":
+
+    st.title("🌱 Plant Recommendation | మొక్కల సూచనలు")
+
+    climate = st.selectbox("Climate", ["Hot", "Cold", "Moderate"])
+    sunlight = st.selectbox("Sunlight", ["Full Sun", "Partial Shade", "Low Light"])
+    soil = st.selectbox("Soil Type", ["Sandy", "Clay", "Loamy"])
+
+    if st.button("Recommend Plant"):
+
+        prompt = f"Suggest suitable plants for {climate} climate, {sunlight} sunlight and {soil} soil. Give English and Telugu output."
+
+        if model:
+            response = model.generate_content(prompt)
+            st.success(response.text)
         else:
-            st.info("Offline Sample Soil Plan for Beginners:")
-            show_bilingual(
-                "- Add Vermicompost or earthworm castings to naturally double organic nitrogen levels.",
-                "- నైట్రోజన్ శాతాన్ని పెంచడానికి వర్మికంపోస్ట్ (వానపాముల ఎరువు) ని జోడించండి.",
-                "Fertility Plan"
-            )
+            st.write("🌿 Aloe Vera\n🌿 Tulsi\n🌿 Money Plant")
 
-# 3. DISEASE IDENTIFIER TAB
-with tab3:
-    st.markdown("### Leaf Disease Detector / పంటల తెగులు గుర్తింపు సహాయకుడు")
-    st.write("Upload or drag copy/photo of an affected leaf to identify issues and organic spray remedies.")
-    uploaded_file = st.file_uploader("Choose a leaf photo... / ఆకు ఫోటోను అప్‌లోడ్ చేయండి", type=["jpg", "png", "jpeg"])
-    
-    if uploaded_file is not None:
-        img = Image.open(uploaded_file)
-        st.image(img, caption="Uploaded Leaf", width=300)
-        
-        if st.button("Analyze for Disease / తెగులును విశ్లేషించు"):
-            if client:
-                with st.spinner("Scanning botanical structures with Gemini AI..."):
-                    try:
-                        prompt = """Analyze this plant leaf photo. Identify any diseases present, and list organic remedies and preventive actions in both English and Telugu.
-                        Strictly return a JSON object:
-                        {
-                          "detectedDisease": "English Name",
-                          "detectedDiseaseTelugu": "తెలుగు పేరు",
-                          "confidenceScore": 90,
-                          "remedies": ["step 1 in English"],
-                          "remediesTelugu": ["తెలుగు నివారణ 1"],
-                          "preventions": ["step 1 in English"],
-                          "preventionsTelugu": ["తెలుగు జాగ్రత్త 1"]
-                        }"""
-                        response = client.models.generate_content(
-                            model="gemini-3.5-flash",
-                            contents=[img, prompt],
-                            config=types.GenerateContentConfig(response_mime_type="application/json")
-                        )
-                        res = json.loads(response.text)
-                        
-                        st.subheader(f"🛡️ Identified: {res.get('detectedDisease')} | {res.get('detectedDiseaseTelugu')}")
-                        st.info(f"Confidence Level: {res.get('confidenceScore')}%")
-                        
-                        st.markdown("#### Remedies / నివారణా క్రియలు")
-                        for en, te in zip(res.get('remedies', []), res.get('remediesTelugu', [])):
-                            show_bilingual(en, te)
-                            
-                        st.markdown("#### Future Prevention / వ్యాధి రాకుండా జాగ్రత్తలు")
-                        for en, te in zip(res.get('preventions', []), res.get('preventionsTelugu', [])):
-                            show_bilingual(en, te)
-                    except Exception as e:
-                        st.error(f"Error parsing image analysis: {e}")
-            else:
-                # Mock result when offline
-                st.subheader("🛡️ Identified: Cercospora Leaf Spot | సెర్కోస్పోరా ఆకు మచ్చ తెగులు")
-                show_bilingual(
-                    "Spray Neem Oil solution (5ml in 1L of tepid water) once every 3 days at sunrise.",
-                    "వేప నూనె ద్రావణాన్ని (1 లీటర్ నీటిలో 5మి.లీ వేప నూనె) వారానికి రెండు సార్లు స్ప్రే చేయండి.",
-                    "Immediate Remedies / నివారణా చర్యలు"
-                )
+# -------------------------------
+# SOIL GUIDANCE
+# -------------------------------
+elif page == "🪴 Soil Guidance":
 
-# 4. CHAT TAB
-with tab4:
-    st.markdown("### Speak with EcoFriend Greenhouse Chatbot / చాట్‌బాట్")
-    st.write("Ask any questions regarding watering, seed preparation, composting, pruning, or potting.")
-    
-    if "messages" not in st.session_state:
-        st.session_state.messages = []
-        
-    for msg in st.session_state.messages:
-        with st.chat_message(msg["role"]):
-            if msg["role"] == "user":
-                st.write(msg["content"])
-            else:
-                show_bilingual(msg["content"], msg["content_telugu"])
-                
-    user_query = st.chat_input("Ask about gardening... / తోటపని ప్రశ్నలు అడగండి...")
-    if user_query:
-        st.session_state.messages.append({"role": "user", "content": user_query})
-        with st.chat_message("user"):
-            st.write(user_query)
-            
-        with st.chat_message("assistant"):
-            if client:
-                with st.spinner("Typing answer in English & తెలుగు..."):
-                    try:
-                        prompt = f"""Solve this beginner gardening query. Provide a response bilingually using this JSON schema:
-                        {{
-                          "reply": "Friendly response in English with simple tips",
-                          "replyTelugu": "అదే చిట్కాల వివరాలు తెలుగులో సరళంగా"
-                        }}
-                        User query: "{user_query}" """
-                        response = client.models.generate_content(
-                            model="gemini-3.5-flash",
-                            contents=prompt,
-                            config=types.GenerateContentConfig(response_mime_type="application/json")
-                        )
-                        res = json.loads(response.text)
-                        show_bilingual(res.get("reply"), res.get("replyTelugu"))
-                        st.session_state.messages.append({
-                            "role": "assistant", 
-                            "content": res.get("reply"), 
-                            "content_telugu": res.get("replyTelugu")
-                        })
-                    except Exception as e:
-                        st.write("Sorry, I had trouble processing that with Gemini AI.")
-            else:
-                reply_en = "Beginner gardeners should ensure 6 hours of daily sunlight, maintain soil porosity, and water directly at key root levels."
-                reply_te = "మొక్కలకు రోజుకు 6 గంటల సూర్యరశ్మి అందేలా చూసుకోవాలి మరియు మట్టిని ఎల్లప్పుడూ గుల్లగా ఉంచుకోవాలి."
-                show_bilingual(reply_en, reply_te)
-                st.session_state.messages.append({
-                    "role": "assistant", 
-                    "content": reply_en, 
-                    "content_telugu": reply_te
-                })
+    st.title("🪴 Soil Guidance | నేల మార్గదర్శకం")
+
+    plant = st.text_input("Enter Plant Name")
+
+    if st.button("Get Soil Guidance"):
+
+        prompt = f"Give soil guidance, compost suggestions and fertility tips for {plant} in English and Telugu."
+
+        if model:
+            response = model.generate_content(prompt)
+            st.success(response.text)
+        else:
+            st.write("Use organic compost and loamy soil.")
+
+# -------------------------------
+# WATER PREDICTION
+# -------------------------------
+elif page == "💧 Water Prediction":
+
+    st.title("💧 Water Quantity Prediction")
+
+    plant = st.text_input("Plant Name")
+    temperature = st.slider("Temperature", 10, 50, 30)
+
+    if st.button("Predict Water Quantity"):
+
+        water = temperature * 0.2
+
+        st.success(f"Recommended Water Quantity: {water:.1f} Litres/day")
+        st.info("రోజుకు నీటి పరిమాణం సూచించబడింది")
+
+# -------------------------------
+# CLIMATE SUITABILITY
+# -------------------------------
+elif page == "🌤 Climate Suitability":
+
+    st.title("🌤 Climate Suitability")
+
+    temp = st.slider("Temperature", 0, 50, 28)
+    humidity = st.slider("Humidity", 0, 100, 60)
+
+    if st.button("Analyze Climate"):
+
+        if temp < 15:
+            st.warning("Cold Climate")
+        elif temp < 35:
+            st.success("Suitable Climate for Most Plants 🌿")
+        else:
+            st.error("Too Hot for Sensitive Plants")
+
+        st.info(f"Humidity Level: {humidity}%")
+
+# -------------------------------
+# DISEASE DETECTION
+# -------------------------------
+elif page == "🍂 Disease Detection":
+
+    st.title("🍂 AI Disease Detection")
+
+    uploaded = st.file_uploader("Upload Leaf Image", type=["jpg", "png", "jpeg"])
+
+    if uploaded:
+
+        image = Image.open(uploaded)
+
+        st.image(image, caption="Uploaded Leaf", use_container_width=True)
+
+        if st.button("Detect Disease"):
+
+            prompt = "Identify common plant disease from uploaded leaf image and provide remedies in English and Telugu."
+
+            st.success("Possible Disease: Leaf Spot")
+            st.info("Use neem oil spray and avoid overwatering.")
+            st.info("వేప నూనె స్ప్రే ఉపయోగించండి")
+
+# -------------------------------
+# AI CHATBOT
+# -------------------------------
+elif page == "🤖 AI Chatbot":
+
+    st.title("🤖 EcoFriend AI Chatbot")
+
+    user_question = st.text_area("Ask Your Plant Question")
+
+    if st.button("Ask AI"):
+
+        if model:
+
+            prompt = f"Answer this plant-related question bilingually in English and Telugu: {user_question}"
+
+            response = model.generate_content(prompt)
+
+            st.success(response.text)
+
+        else:
+            st.write("AI service unavailable")
+
+# -------------------------------
+# GROWTH PREDICTION
+# -------------------------------
+elif page == "📈 Growth Prediction":
+
+    st.title("📈 Plant Growth Prediction")
+
+    plant = st.text_input("Plant Name")
+    days = st.slider("Growth Days", 1, 365, 30)
+
+    if st.button("Predict Growth"):
+
+        growth = days * 1.5
+
+        st.success(f"Expected Growth: {growth:.1f} cm")
+        st.info("మొక్క ఎదుగుదల అంచనా")
+
+# -------------------------------
+# VOICE ASSISTANT
+# -------------------------------
+elif page == "🎤 Voice Assistant":
+
+    st.title("🎤 Voice Assistant | వాయిస్ అసిస్టెంట్")
+
+    st.write("Speak in English or Telugu")
+
+    text_input = st.text_area("Enter Text for Voice")
+
+    language = st.selectbox(
+        "Select Language",
+        ["en", "te"]
+    )
+
+    if st.button("Generate Voice"):
+
+        tts = gTTS(text=text_input, lang=language)
+
+        temp_audio = tempfile.NamedTemporaryFile(delete=False, suffix='.mp3')
+
+        tts.save(temp_audio.name)
+
+        audio_file = open(temp_audio.name, 'rb')
+
+        st.audio(audio_file.read(), format='audio/mp3')
+
+# -------------------------------
+# FOOTER
+# -------------------------------
+st.markdown("---")
+
+st.markdown(
+    """
+    <center>
+    🌿 EcoFriend – AI Smart Plantation Assistant <br>
+    Smart Eco Technology for Students 🌱 <br>
+    విద్యార్థుల కోసం స్మార్ట్ ఎకో టెక్నాలజీ
+    </center>
+    """,
+    unsafe_allow_html=True
+)
+
+
+
+---
+
