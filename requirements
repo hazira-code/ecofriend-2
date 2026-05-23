@@ -1,7 +1,9 @@
-# Python Streamlit Application Requirements
-# To run locally: pip install -r requirements.txt && streamlit run app.py
-
 streamlit>=1.35.0
-google-genai>=0.1.1
+google-generativeai>=0.7.2
 pillow>=10.3.0
 python-dotenv>=1.0.1
+pandas>=2.2.2
+gtts>=2.5.1
+SpeechRecognition>=3.10.4
+numpy>=1.26.4
+requests>=2.32.3
