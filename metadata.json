@@ -1,0 +1,6 @@
+{
+  "name": "EcoFriend – AI Smart Plantation Assistant",
+  "description": "AI-powered bilingual smart gardening and plantation management assistant for students and beginners.",
+  "requestFramePermissions": ["camera", "microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
